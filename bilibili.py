@@ -9,7 +9,7 @@ import sys,os
 import re
 import json
 import shutil
-
+import re
 
 def make_path(p):  
     """
@@ -17,9 +17,10 @@ def make_path(p):
         存在则清空
         不存在则创建
     """
-    if os.path.exists(p):       # 判断文件夹是否存在  
-        shutil.rmtree(p)        # 删除文件夹  
-    os.mkdir(p)                 # 创建文件夹  
+    #if os.path.exists(p):       # 判断文件夹是否存在  
+    #    shutil.rmtree(p)        # 删除文件夹  
+    if not os.path.exists(p):
+        os.mkdir(p)                 # 创建文件夹  
 
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36',
 			'Accept': '*/*',
@@ -31,7 +32,7 @@ sess = requests.Session()
 #下载的根目录
 root_dir = '.'          
 
-def download_video(video_url, file, index):
+def download_video(video_url, dir_, video_name, index):
     size = 0
     '''
         当使用requests的get下载大文件/数据时，建议使用使用stream模式。
@@ -42,31 +43,31 @@ def download_video(video_url, file, index):
     '''
     session = requests.Session() 
     response = session.get(video_url, headers=headers, stream=True, verify=False)
-    chunk_size = 1024 #每次1KB
+    chunk_size = 102400 * 4 #每次400KB
     content_size = int(response.headers['content-length'])
+    video_name = os.path.join(dir_, video_name, str(index) + '.flv')
     if response.status_code == 200:
         sys.stdout.write('第%d个片段：[文件大小]:%0.2f MB\n' % (index, content_size / 1024 / 1024))
-            
-        for data in response.iter_content(chunk_size = chunk_size):
-            file.write(data)
-            size += len(data)
-            file.flush()
+        with open(video_name, 'wb') as file:
+            for data in response.iter_content(chunk_size = chunk_size):
+                file.write(data)
+                size += len(data)
+                file.flush()
 
-            sys.stdout.write('第%d个片段：[下载进度]:%.2f%%' % (index, float(size / content_size * 100)) + '\r')
-            if size / content_size == 1:
-                print('\n')    
+                sys.stdout.write('第%d个片段：[下载进度]:%.2f%%' % (index, float(size / content_size * 100)) + '\r')
+                if size / content_size == 1:
+                    print('\n')    
     else:
         print('链接异常')    
 
 
-def download_videos(dir, video_urls, video_name):
-    print('正在下载 %s 到 %s 文件夹下' %(video_name, dir))
-    video_name = os.path.join(dir, video_name)
-    with open(video_name, 'wb') as file:
-        print("共有%d个片段需要下载" %len(video_urls))
-        for i, video_url in enumerate(video_urls):
-            
-            download_video(video_url, file, i+1)
+def download_videos(dir_, video_urls, video_name):
+    make_path(os.path.join(dir_, video_name))
+    print('正在下载 %s 到 %s 文件夹下' %(video_name, os.path.join(dir_, video_name)))
+    
+    print("共有%d个片段需要下载" %len(video_urls))
+    for i, video_url in enumerate(video_urls):            
+        download_video(video_url, dir_, video_name, i+1)
                 
 def get_download_urls(arcurl):
     req = sess.get(url=arcurl, verify=False)
@@ -82,7 +83,7 @@ def get_download_urls(arcurl):
         每一个视频的最后一个片段的url都无法下载视频
         经试验将'mirroross'替换成'mirrorcos'后可下载
     """
-    urls = [url['url'].replace('mirroross', 'mirrorcos') for url in durl]
+    urls = [re.sub('mirror.*?\.', 'mirrorcos.', url['url']) for url in durl]
     return urls
 
 def get_page_count(url):
@@ -100,25 +101,28 @@ def get_page_count(url):
     title = re.findall('<title .*>(.*)</title>', req.text)[0]
     return title_pages, title
 
-def download_all(aid):
+def download_all(aid, start_page = 1):
     """
         给定一个视频号，下载所有的视频
     """
     url = 'https://www.bilibili.com/video/av%s'%aid
     title_pages, title = get_page_count(url)
-    dir = os.path.join(root_dir, title)
-    make_path(dir)
-    print('创建文件夹 %s 成功' %dir)
+    dir_ = os.path.join(root_dir, title)
+    make_path(dir_)
+    print('创建文件夹 %s 成功' %dir_)
     for title,page in title_pages.items():
+        if page < start_page:
+            continue
         video_url = 'https://www.bilibili.com/video/av6538245/?p=%d' %page
         urls = get_download_urls(video_url)
-        download_videos(dir, urls, '%s.flv' %title)
+        download_videos(dir_, urls, '%s.flv' %title)
     
 aid = '6538245'
-download_all(aid)
+download_all(aid, 4)
 
 #dir = '.'
-#video_urls = ['http://upos-hz-mirrorcos.acgvideo.com/upgcxcode/87/67/10636787/10636787-3-32.flv?e=ig8euxZM2rNcNbNzhWNVhoMM7bNMhwdEto8g5X10ugNcXBlqNxHxNEVE5XREto8KqJZHUa6m5J0SqE85tZvEuENvNC8xNEVE9EKE9IMvXBvE2ENvNCImNEVEK9GVqJIwqa80WXIekXRE9IB5QK==&deadline=1529821499&dynamic=1&gen=playurl&oi=2001726840&os=oss&platform=pc&rate=231200&trid=bc737d2be509444d8b74a7f0fa0b9831&uipk=5&uipv=5&um_deadline=1529821499&um_sign=2e2f1e835bbb495cbc2029d6f6ab92d9&upsig=a0a4a8a2d6440e694ca32e4a80cedf67']
+#video_urls = [re.sub('mirror.*?\.', 'mirrorcos.', 'http://upos-hz-mirrorkodo.acgvideo.com/upgcxcode/88/67/10636788/10636788-1-32.flv?e=ig8euxZM2rNcNbNz7bhVhoMM7zNjhwdEto8g5X10ugNcXBlqNxHxNEVE5XREto8KqJZHUa6m5J0SqE85tZvEuENvNC8xNEVE9EKE9IMvXBvE2ENvNCImNEVEK9GVqJIwqa80WXIekXRE9IB5QK==&deadline=1529831244&dynamic=1&gen=playurl&oi=2001726840&os=kodo&platform=pc&rate=236300&trid=81efa0ff0076459d9ad623e74e844c05&uipk=5&uipv=5&um_deadline=1529831244&um_sign=2313898cb27803c5509d7d8fc1e60439&upsig=cdfcab1e42706cf73637c8834433cb39')]
+#print(video_urls)
 #backup_urls = video_urls
 #video_name = 'ss.flv'
-#download_videos(dir, video_urls, backup_urls, video_name)
+#download_videos(dir, video_urls, video_name)
