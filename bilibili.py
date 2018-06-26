@@ -22,6 +22,8 @@ def make_path(p):
     if not os.path.exists(p):
         os.mkdir(p)                 # 创建文件夹  
 
+
+        
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36',
 			'Accept': '*/*',
 			'Accept-Encoding': 'gzip, deflate, br',
@@ -75,7 +77,7 @@ def get_download_urls(arcurl):
     try:
         infos = re.findall(pattern, req.text)[0]
     except:
-        return '',''
+        return []
     json_ = json.loads(infos)
     durl = json_['durl']
     """
@@ -113,16 +115,9 @@ def download_all(aid, start_page = 1):
     for title,page in title_pages.items():
         if page < start_page:
             continue
-        video_url = 'https://www.bilibili.com/video/av6538245/?p=%d' %page
+        video_url = url + '/?p=%d' %page
         urls = get_download_urls(video_url)
         download_videos(dir_, urls, '%s.flv' %title)
     
 aid = '6538245'
-download_all(aid, 4)
-
-#dir = '.'
-#video_urls = [re.sub('mirror.*?\.', 'mirrorcos.', 'http://upos-hz-mirrorkodo.acgvideo.com/upgcxcode/88/67/10636788/10636788-1-32.flv?e=ig8euxZM2rNcNbNz7bhVhoMM7zNjhwdEto8g5X10ugNcXBlqNxHxNEVE5XREto8KqJZHUa6m5J0SqE85tZvEuENvNC8xNEVE9EKE9IMvXBvE2ENvNCImNEVEK9GVqJIwqa80WXIekXRE9IB5QK==&deadline=1529831244&dynamic=1&gen=playurl&oi=2001726840&os=kodo&platform=pc&rate=236300&trid=81efa0ff0076459d9ad623e74e844c05&uipk=5&uipv=5&um_deadline=1529831244&um_sign=2313898cb27803c5509d7d8fc1e60439&upsig=cdfcab1e42706cf73637c8834433cb39')]
-#print(video_urls)
-#backup_urls = video_urls
-#video_name = 'ss.flv'
-#download_videos(dir, video_urls, video_name)
+download_all(aid, 1)
