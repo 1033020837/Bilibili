@@ -11,6 +11,11 @@ import json
 import shutil
 import re
 
+from pprint import pprint
+
+# 下载地址的镜像格式部分的可能替换值
+video_mode = ['mirrorbos.', 'mirrorks3u.', 'mirrorkodo.', 'mirrorks3.', 'mirrorcos.']
+
 def make_path(p):  
     """
         判断文件夹是否存在
@@ -44,23 +49,43 @@ def download_video(video_url, dir_, video_name, index):
         iter_lines：一行一行的遍历要下载的内容
     '''
     session = requests.Session() 
-    response = session.get(video_url, headers=headers, stream=True, verify=False)
-    chunk_size = 102400 * 4 #每次400KB
-    content_size = int(response.headers['content-length'])
-    video_name = os.path.join(dir_, video_name, str(index) + '.flv')
-    if response.status_code == 200:
-        sys.stdout.write('第%d个片段：[文件大小]:%0.2f MB\n' % (index, content_size / 1024 / 1024))
-        with open(video_name, 'wb') as file:
-            for data in response.iter_content(chunk_size = chunk_size):
-                file.write(data)
-                size += len(data)
-                file.flush()
+    
+    mirror = re.findall('mirror.*?\.', video_url)
+    p = video_mode.copy()
+    curMode = mirror[0] if len(mirror) > 0 else ''
+    # 链接中是否带mirror字符
+    isMirror = len(mirror) > 0
+    
+    while(True):
 
-                sys.stdout.write('第%d个片段：[下载进度]:%.2f%%' % (index, float(size / content_size * 100)) + '\r')
-                if size / content_size == 1:
-                    print('\n')    
-    else:
-        print('链接异常')    
+    
+        response = session.get(video_url, headers=headers, stream=True, verify=False)
+        chunk_size = 102400 * 4 #每次400KB
+        content_size = int(response.headers['content-length'])
+        video_name = os.path.join(dir_, video_name, str(index) + '.flv')
+        if response.status_code == 200:
+            sys.stdout.write('第%d个片段：[文件大小]:%0.2f MB\n' % (index, content_size / 1024 / 1024))
+            with open(video_name, 'wb') as file:
+                for data in response.iter_content(chunk_size = chunk_size):
+                    file.write(data)
+                    size += len(data)
+                    file.flush()
+
+                    sys.stdout.write('第%d个片段：[下载进度]:%.2f%%' % (index, float(size / content_size * 100)) + '\r')
+                    if size / content_size == 1:
+                        print('\n')   
+            return
+        
+        else:
+            print('此链接异常，尝试更换链接')    
+            
+            p.remove(curMode)
+            
+            if not isMirror or len(p) == 0:
+                print('此视频片段无法下载') 
+                return
+            
+            re.sub('mirror.*?\.', p[0], video_url)
 
 
 def download_videos(dir_, video_urls, video_name):
@@ -85,7 +110,12 @@ def get_download_urls(arcurl):
         每一个视频的最后一个片段的url都无法下载视频
         经试验将'mirroross'替换成'mirrorcos'后可下载
     """
-    urls = [re.sub('mirror.*?\.', 'mirrorcos.', url['url']) for url in durl]
+         
+        
+    
+    #urls = [re.sub('mirror.*?\.', 'mirrorcos.', url['url']) for url in durl]
+    urls = [url['url'] for url in durl]
+    
     return urls
 
 def get_page_count(url):
@@ -111,6 +141,9 @@ def download_all(aid, start_page = 1):
     title_pages, title = get_page_count(url)
     dir_ = os.path.join(root_dir, title)
     make_path(dir_)
+    
+    
+    
     print('创建文件夹 %s 成功' %dir_)
     for title,page in title_pages.items():
         if page < start_page:
@@ -121,3 +154,5 @@ def download_all(aid, start_page = 1):
     
 aid = '6538245'
 download_all(aid, 1)
+
+pprint(p)
