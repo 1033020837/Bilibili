@@ -11,10 +11,15 @@ import json
 import shutil
 import re
 
+import threading
+
 from pprint import pprint
 
 # 下载地址的镜像格式部分的可能替换值
-video_mode = ['mirrorbos.', 'mirrorks3u.', 'mirrorkodo.', 'mirrorks3.', 'mirrorcos.']
+video_mode = [ 'mirrorcos.', 'mirrorkodo.', 'mirrorks3.', 'mirrorbos.', 'mirrorks3u.',  ]
+
+# 主线程
+main_thread = threading.current_thread()
 
 def make_path(p):  
     """
@@ -51,19 +56,17 @@ def download_video(video_url, dir_, video_name, index):
     session = requests.Session() 
     
     mirror = re.findall('mirror.*?\.', video_url)
-    p = video_mode.copy()
-    curMode = mirror[0] if len(mirror) > 0 else ''
     # 链接中是否带mirror字符
-    isMirror = len(mirror) > 0
+    isMirror = len(mirror) > 0   
+    chunk_size = 102400 * 4 #每次400KB
+    video_name = os.path.join(dir_, video_name, str(index) + '.flv')
     
-    while(True):
-
-    
+    for i,mode in enumerate(video_mode):  
+        video_url = re.sub('mirror.*?\.', mode, video_url)
         response = session.get(video_url, headers=headers, stream=True, verify=False)
-        chunk_size = 102400 * 4 #每次400KB
-        content_size = int(response.headers['content-length'])
-        video_name = os.path.join(dir_, video_name, str(index) + '.flv')
+            
         if response.status_code == 200:
+            content_size = int(response.headers['content-length'])
             sys.stdout.write('第%d个片段：[文件大小]:%0.2f MB\n' % (index, content_size / 1024 / 1024))
             with open(video_name, 'wb') as file:
                 for data in response.iter_content(chunk_size = chunk_size):
@@ -72,20 +75,20 @@ def download_video(video_url, dir_, video_name, index):
                     file.flush()
 
                     sys.stdout.write('第%d个片段：[下载进度]:%.2f%%' % (index, float(size / content_size * 100)) + '\r')
+                    sys.stdout.flush()
                     if size / content_size == 1:
                         print('\n')   
             return
         
         else:
+           
             print('此链接异常，尝试更换链接')    
             
-            p.remove(curMode)
-            
-            if not isMirror or len(p) == 0:
+            if not isMirror or i == len(video_mode) - 1:
                 print('此视频片段无法下载') 
                 return
             
-            re.sub('mirror.*?\.', p[0], video_url)
+            
 
 
 def download_videos(dir_, video_urls, video_name):
@@ -93,8 +96,20 @@ def download_videos(dir_, video_urls, video_name):
     print('正在下载 %s 到 %s 文件夹下' %(video_name, os.path.join(dir_, video_name)))
     
     print("共有%d个片段需要下载" %len(video_urls))
-    for i, video_url in enumerate(video_urls):            
-        download_video(video_url, dir_, video_name, i+1)
+    for i, video_url in enumerate(video_urls):      
+        
+        t = threading.Thread(target=download_video, kwargs={'video_url': video_url, 'dir_': dir_, 'video_name': video_name, 'index': i+1})
+        t.setDaemon(True)
+        t.start()
+        
+        #download_video(video_url, dir_, video_name, i+1)
+    
+    for t in threading.enumerate():
+        if t is main_thread:
+            continue
+        t.join()
+    
+    print(' %s 下载完成' %video_name)
                 
 def get_download_urls(arcurl):
     req = sess.get(url=arcurl, verify=False)
@@ -105,13 +120,6 @@ def get_download_urls(arcurl):
         return []
     json_ = json.loads(infos)
     durl = json_['durl']
-    """
-        不知道是什么原因
-        每一个视频的最后一个片段的url都无法下载视频
-        经试验将'mirroross'替换成'mirrorcos'后可下载
-    """
-         
-        
     
     #urls = [re.sub('mirror.*?\.', 'mirrorcos.', url['url']) for url in durl]
     urls = [url['url'] for url in durl]
