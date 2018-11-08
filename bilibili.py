@@ -133,8 +133,12 @@ def one_process(dir_, urls_and_titles):
         download_videos(dir_, urls, '%s' %title)
     
 if __name__ == '__main__':   
+    # 视频编号，替换为自己需要下载的视频编号
     aid = '6538245'
+    
+    # 一个视频可能分很多，定义从第几页开始下载
     start_page = 1
+    
     url = 'https://www.bilibili.com/video/av%s'%aid
     title_pages, title = get_page_count(url)
     dir_ = os.path.join(root_dir, title)
