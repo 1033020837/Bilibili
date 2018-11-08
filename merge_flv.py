@@ -28,14 +28,17 @@ if __name__ == '__main__':
     # 要合并所有视频的根文件夹
     root_dir = '操作系统_清华大学(向勇、陈渝)_哔哩哔哩 (゜-゜)つロ 干杯~-bilibili'
     for dir in os.listdir(root_dir):
-        dir_path = os.path.join(root_dir, dir)
-        movie_list = []
-        for flv_file in  os.listdir(dir_path):
-            print(flv_file)
-            if flv_file.endswith('.flv'):
-                file_path = os.path.join(dir_path, flv_file)
-            movie_list.append(file_path)
-        #合并flv视频片段为mp4文件
-        merge_flv(movie_list, os.path.join(dir_path, dir + '.mp4'))
+        try:
+            dir_path = os.path.join(root_dir, dir)
+            movie_list = []
+            for flv_file in  os.listdir(dir_path):
+                print(flv_file)
+                if flv_file.endswith('.flv'):
+                    file_path = os.path.join(dir_path, flv_file)
+                movie_list.append(file_path)
+            #合并flv视频片段为mp4文件
+            merge_flv(movie_list, os.path.join(dir_path, dir + '.mp4'))
+        except:
+            continue
     print("合并完成")
         
