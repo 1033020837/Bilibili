@@ -134,7 +134,7 @@ def one_process(dir_, urls_and_titles):
     
 if __name__ == '__main__':   
     # 视频编号，替换为自己需要下载的视频编号
-    aid = '6538245'
+    aid = '31300709'
     
     # 一个视频可能分很多，定义从第几页开始下载
     start_page = 1
@@ -151,17 +151,20 @@ if __name__ == '__main__':
         video_url = url + '/?p=%d' %page
         urls = get_download_urls(video_url)
         urls_and_titles.append([urls, title])
-    # 进程数目
-    process_count = 5
+    
     # 需要下载的视频总数
     count = len(urls_and_titles)
+    # 进程数目,需要下载的视频总数超过30才会开启多进程
+    process_count = 5
     # 每个进程需要下载的视频数目
     each_count = count // process_count
     indexs = []
-    for i in range(process_count - 1):
-        indexs.append(urls_and_titles[i*each_count:(i+1)*each_count])
+    for i in range(process_count):
+        if each_count != 0:
+            indexs.append(urls_and_titles[i*each_count:(i+1)*each_count])
         if i == (process_count - 1) and (i+1)*each_count != count:
             indexs.append(urls_and_titles[(i+1)*each_count:count])
+    print(indexs)
     print('Parent process %s.' % os.getpid())
     p = Pool(process_count)
     for i in range(len(indexs)):
