@@ -99,12 +99,19 @@ def get_download_urls(arcurl):
         infos = re.findall(pattern, req.text)[0]
     except:
         return []
-    json_ = json.loads(infos)
-    durl = json_['durl']
+    json_ = json.loads(infos)['data']
+    keys = json_.keys()      
     
-    #urls = [re.sub('mirror.*?\.', 'mirrorcos.', url['url']) for url in durl]
-    urls = [url['url'] for url in durl]
-    
+    # 不同视频类型存储视频地址的键不同，目前发现有两种，有新的类型可以提issue补充
+    if 'durl' in keys:
+        durl = json_['durl']
+        urls = [url['url'] for url in durl]
+    elif 'dash' in keys:
+        durl = json_['dash']['video']
+        #urls = [re.sub('mirror.*?\.', 'mirrorcos.', url['url']) for url in durl]
+        urls = [url['baseUrl'] for url in durl]
+    else:
+        return []
     return urls
 
 def get_page_count(url):
@@ -112,11 +119,13 @@ def get_page_count(url):
         获取一个视频的页数
     """
     req=sess.get(url, headers=headers)
-    pattern = '\"pages\":(\[.*}}\]),'
+    pattern = '\"pages\":(\[.*?}}\]),'
     try:
         infos = re.findall(pattern, req.text)[0]
         json_ = json.loads(infos)
+        
         title_pages = dict([(page['part'],page['page']) for page in json_])
+        
         title = re.findall('<title .*>(.*)</title>', req.text)[0]
         return title_pages, title
     except  Exception as e:
@@ -134,12 +143,13 @@ def one_process(dir_, urls_and_titles):
     
 if __name__ == '__main__':   
     # 视频编号，替换为自己需要下载的视频编号
-    aid = '31300709'
+    aid = '6538245'
     
     # 一个视频可能分很多，定义从第几页开始下载
     start_page = 1
     
     url = 'https://www.bilibili.com/video/av%s'%aid
+    
     title_pages, title = get_page_count(url)
     dir_ = os.path.join(root_dir, title)
     make_path(dir_)
@@ -150,6 +160,9 @@ if __name__ == '__main__':
             continue
         video_url = url + '/?p=%d' %page
         urls = get_download_urls(video_url)
+        if len(urls) == 0:
+            print('未发现视频地址')
+            exit(1)
         urls_and_titles.append([urls, title])
     
     # 需要下载的视频总数
